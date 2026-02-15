@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fish Lab: Final Grid Structure</title>
+    <style>
+        body { margin: 0; background: #121212; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; }
+        #lab-world { position: relative; width: 900px; height: 600px; margin-top: 20px; border: 5px solid #333; background: #1a1a1a; overflow: hidden; }
+        canvas { display: block; cursor: crosshair; }
+        #hud { position: absolute; top: 15px; left: 15px; pointer-events: none; z-index: 10; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px; border: 1px solid #444; }
+        #controls { margin-top: 15px; display: none; background: #2a2a2a; padding: 15px; border-radius: 8px; border: 1px solid #444; gap: 15px; align-items: center; }
+        
+        #cursor-item { 
+            position: absolute; width: 50px; height: 50px; 
+            pointer-events: none; z-index: 9999; 
+            transform: translate(-50%, -50%); display: none; 
+            align-items: center; justify-content: center; 
+            font-size: 10px; font-weight: bold; border-radius: 50%; 
+        }
+        .cotton-dry { display: flex !important; background: #fff; box-shadow: 0 0 10px #fff; color: #000; }
+        .cotton-wet { display: flex !important; background: #aaddff; box-shadow: 0 0 15px #4da6ff; border: 2px solid #fff; color: #000; }
+        .label { color: #00ff00; font-weight: bold; font-family: monospace; font-size: 1.2em; height: 25px; }
+        button { background: #d32f2f; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h2 style="margin-bottom:5px;">Fish Physiology Lab</h2>
+    <p style="margin: 0; color: #ffcc00; font-size: 0.9em;">Drag to move. Press 'Z' to zoom in/out when sedated.</p>
+    
+    <div id="lab-world">
+        <div id="hud">
+            <div id="msg">Step 1: Pick up dry cotton.</div>
+            <div id="vessel-tag" class="label"></div>
+        </div>
+        <div id="cursor-item"></div>
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div id="controls">
+        <label>Microscope Focus: </label>
+        <input type="range" id="focusSlider" min="0" max="25" step="0.1" value="25">
+        <button onclick="zoomOut()">Zoom Out (Z)</button>
+    </div>
+
+<script>
+const canvas = document.getElementById('mainCanvas');
+const ctx = canvas.getContext('2d');
+const cursorItem = document.getElementById('cursor-item');
+const msg = document.getElementById('msg');
+const controls = document.getElementById('controls');
+const focusSlider = document.getElementById('focusSlider');
+const vesselTag = document.getElementById('vessel-tag');
+
+canvas.width = 900; canvas.height = 600;
+
+let state = 'PREP'; 
+let hasCotton = false, isWet = false, isDraggingFish = false;
+let fish = { x: 500, y: 300, angle: 0, speed: 2.2, isSedated: false, wetStatus: 'outside' };
+
+// Particle setup for the "Ladder" flow
+let particles = [];
+for(let i=0; i<120; i++) {
+    particles.push({
+        x: Math.random() * 900,
+        y: 180, // Top vessel (Artery)
+        mode: 'artery',
+        speed: 1.2 + Math.random() * 2,
+        offset: (Math.random() - 0.5) * 6
+    });
+}
+
+let mx = 0, my = 0;
+
+canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    mx = e.clientX - rect.left; my = e.clientY - rect.top;
+    cursorItem.style.left = mx + "px"; cursorItem.style.top = my + "px";
+    if(isDraggingFish) { fish.x = mx; fish.y = my; }
+
+    // PRECISE HITBOX DETECTION
+    if(state === 'ZOOMED' && focusSlider.value < 3) {
+        let tagText = "";
+        // Artery Hitbox (Thick)
+        if (my > 165 && my < 195) tagText = "ID: ARTERY (Thickest)";
+        // Vein Hitbox (Medium)
+        else if (my > 405 && my < 435) tagText = "ID: VEIN (Medium)";
+        // Capillary Hitbox (Very Thin Bridge)
+        else {
+            for(let x = 100; x < 900; x += 200) {
+                if(Math.abs(mx - x) < 10 && my > 180 && my < 420) {
+                    tagText = "ID: CAPILLARY (Thinnest)";
+                    break;
+                }
+            }
+        }
+        vesselTag.innerText = tagText;
+    }
+});
+
+window.addEventListener('keydown', e => {
+    if (e.key.toLowerCase() === 'z') {
+        if (state === 'PREP' && fish.isSedated) {
+            state = 'ZOOMED';
+            controls.style.display = 'flex';
+            cursorItem.style.display = 'none';
+        } else if (state === 'ZOOMED') {
+            zoomOut();
+        }
+    }
+});
+
+canvas.addEventListener('mousedown', () => {
+    if(state === 'PREP') {
+        if(!hasCotton && mx < 160 && my > 440) {
+            hasCotton = true; cursorItem.className = 'cotton-dry'; return;
+        }
+        if(hasCotton && !isWet && mx > 720 && mx < 840 && my > 460) {
+            isWet = true; cursorItem.className = 'cotton-wet'; return;
+        }
+        const dist = Math.hypot(mx - fish.x, my - fish.y);
+        if(dist < 75 && isWet && !fish.isSedated) {
+            fish.isSedated = true;
+            fish.wetStatus = 'dry'; 
+            // NUCLEAR CLEAR
+            hasCotton = false; isWet = false;
+            cursorItem.style.display = 'none';
+            cursorItem.className = '';
+            msg.innerText = "Sedated. Drag to move, Z to zoom.";
+            return;
+        }
+        if(dist < 75 && (fish.isSedated || fish.wetStatus === 'beaker')) isDraggingFish = true;
+    }
+});
+
+canvas.addEventListener('mouseup', () => {
+    if(isDraggingFish) {
+        isDraggingFish = false;
+        if(fish.x > 720 && fish.y > 460) {
+            fish.wetStatus = 'beaker'; fish.isSedated = false;
+        } else if(!fish.isSedated) {
+            fish.wetStatus = 'outside';
+        }
+    }
+});
+
+function zoomOut() { state = 'PREP'; controls.style.display = 'none'; }
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if(state === 'PREP') {
+        ctx.fillStyle = "#2c1e16"; ctx.fillRect(0, 450, 900, 150);
+        ctx.fillStyle = "rgba(100, 200, 255, 0.3)"; ctx.fillRect(720, 460, 120, 100);
+        ctx.strokeStyle = "#fff"; ctx.strokeRect(720, 460, 120, 100);
+        ctx.fillStyle = "#eee"; ctx.beginPath(); ctx.arc(80, 500, 35, 0, Math.PI*2); ctx.fill();
+
+        if(fish.wetStatus === 'outside' && !isDraggingFish) {
+            fish.x += Math.cos(fish.angle) * fish.speed; fish.y += Math.sin(fish.angle) * fish.speed;
+            fish.angle += (Math.random() - 0.5) * 0.15;
+            if(fish.x < 50 || fish.x > 850 || fish.y < 50 || fish.y > 400) fish.angle += Math.PI;
+        }
+
+        ctx.save();
+        ctx.translate(fish.x, fish.y); ctx.rotate(fish.angle);
+        ctx.fillStyle = (fish.wetStatus === 'beaker') ? "#5a9ab3" : "#888"; 
+        ctx.beginPath(); ctx.ellipse(0, 0, 50, 18, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "rgba(255,180,180,0.8)"; ctx.beginPath(); ctx.moveTo(-45, 0); ctx.lineTo(-80, -20); ctx.lineTo(-80, 20); ctx.closePath(); ctx.fill();
+        if(fish.isSedated) { ctx.fillStyle = "white"; ctx.beginPath(); ctx.arc(35, 0, 20, 0, Math.PI*2); ctx.fill(); }
+        ctx.restore();
+    } else {
+        const blur = parseFloat(focusSlider.value);
+        ctx.save();
+        ctx.fillStyle = "#cfc5b4"; ctx.fillRect(0, 0, 900, 600);
+        ctx.filter = `blur(${blur}px)`;
+        
+        // DRAW LADDER NETWORK
+        ctx.strokeStyle = "rgba(0,0,0,0.12)";
+        
+        // 1. Artery (Top, THICKEST)
+        ctx.lineWidth = 35;
+        ctx.beginPath(); ctx.moveTo(0, 180); ctx.lineTo(900, 180); ctx.stroke();
+        
+        // 2. Vein (Bottom, MEDIUM)
+        ctx.lineWidth = 22;
+        ctx.beginPath(); ctx.moveTo(0, 420); ctx.lineTo(900, 420); ctx.stroke();
+        
+        // 3. Capillaries (Bridges, THINNEST)
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        for(let x = 100; x < 900; x += 200) {
+            ctx.moveTo(x, 180); ctx.lineTo(x, 420);
+        }
+        ctx.stroke();
+
+        // BLOOD PARTICLES
+        particles.forEach(p => {
+            ctx.fillStyle = "rgba(45, 12, 12, 0.9)";
+            ctx.beginPath();
+            ctx.ellipse(p.x, p.y + p.offset, 7, 5, 0, 0, Math.PI*2);
+            ctx.fill();
+
+            if(p.mode === 'artery') {
+                p.x += p.speed;
+                if(p.x > 900) p.x = 0;
+                // Chance to drop into a thin bridge
+                if(Math.abs(p.x % 200 - 100) < 4 && Math.random() < 0.08) {
+                    p.mode = 'capillary';
+                    p.x = Math.round(p.x / 200) * 200 - 100;
+                }
+            } else if(p.mode === 'capillary') {
+                p.y += 1.8; // Vertical flow
+                if(p.y >= 420) { p.y = 420; p.mode = 'vein'; }
+            } else if(p.mode === 'vein') {
+                p.x -= 1.2; // Slower return flow
+                if(p.x < 0) { p.x = 900; p.y = 180; p.mode = 'artery'; }
+            }
+        });
+
+        ctx.restore();
+        // Microscope Mask
+        ctx.fillStyle = "black";
+        ctx.beginPath(); ctx.rect(0, 0, 900, 600); ctx.arc(450, 300, 280, 0, Math.PI * 2, true); ctx.fill();
+    }
+    requestAnimationFrame(draw);
+}
+fish.wetStatus = 'outside';
+draw();
+</script>
+</body>
+</html>
