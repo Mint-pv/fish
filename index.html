@@ -25,8 +25,8 @@
 </head>
 <body>
 
-    <h2 style="margin-bottom:5px;">Fish Physiology Lab</h2>
-    <p style="margin: 0; color: #ffcc00; font-size: 0.9em;">Drag to move. Press 'Z' to zoom in/out when sedated.</p>
+    <h2 style="margin-bottom:5px;">Lab หางปลามีอะไร ใครเล่าจะรู้</h2>
+    <p style="margin: 0; color: #ffcc00; font-size: 0.9em;"> **ควรทดลองอย่างระมัดระวังเพื่อป้องกันการเสียชีวิตของน้องปลา**</p>
     
     <div id="lab-world">
         <div id="hud">
@@ -99,7 +99,7 @@ canvas.addEventListener('mousemove', e => {
 });
 
 window.addEventListener('keydown', e => {
-    if (e.key.toLowerCase() === 'z') {
+    if (e.key.toLowerCase() === 'z' || e.key === 'ผ') {
         if (state === 'PREP' && fish.isSedated) {
             state = 'ZOOMED';
             controls.style.display = 'flex';
@@ -225,6 +225,56 @@ function draw() {
 }
 fish.wetStatus = 'outside';
 draw();
+</script>
+<div id="info-tab" style="position: fixed; right: -300px; top: 20px; width: 300px; height: 750px; background: #252525; border: 2px solid #444; transition: 0.5s; z-index: 1000; padding: 20px; box-sizing: border-box; border-radius: 10px 0 0 10px; box-shadow: -5px 0 15px rgba(0,0,0,0.5);">
+    <div id="tab-handle" onclick="toggleSidebar()" style="position: absolute; left: -40px; top: 50px; width: 40px; height: 100px; background: #d32f2f; color: white; writing-mode: vertical-rl; text-align: center; cursor: pointer; border-radius: 10px 0 0 10px; font-weight: bold; line-height: 40px;">คลังความรู้ (INFO)</div>
+    
+    <h3 style="color: #ffcc00; border-bottom: 1px solid #444; padding-bottom: 10px;">ข้อมูลระบบหมุนเวียนเลือด</h3>
+    
+    <div style="margin-bottom: 20px;">
+        <strong style="color: #ff4444; font-size: 1.1em;">1. Artery (หลอดเลือดแดง)</strong>
+        <p style="font-size: 0.9em; color: #ccc;">มีขนาดเส้นผ่านศูนย์กลางใหญ่ที่สุด ผนังหนา สังเกตในกล้องจะเห็นเลือดไหลด้วยความเร็วสูง นำเลือดที่มีออกซิเจนสูงไหลจากบริเวณโคนหางพุ่งออกไปทางปลายหางด้วยความเร็วที่เป็นจังหวะตามการฉีดฉีดของหัวใจ  จากนั้นเลือดจะไหลเข้าสู่เครือข่ายเส้นเลือฝอย</p>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+        <strong style="color: #44aaff; font-size: 1.1em;">2. Vein (หลอดเลือดดำ)</strong>
+        <p style="font-size: 0.9em; color: #ccc;">มีขนาดปานกลาง ผนังบางกว่าหลอดเลือดแดง เลือดไหลช้าลงอย่างเห็นได้ชัด ทำหน้าที่นำเลือดกลับเข้าสู่หัวใจโดยเดินทางย้อนกลับจากทางปลายหางวนเข้าสู่โคนหางและกลับเข้าสู่ลำตัวปลาด้วยความเร็วที่สม่ำเสมอมากกว่าหลอดเลือดแดง</p>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+        <strong style="color: #00ff00; font-size: 1.1em;">3. Capillary (หลอดเลือดฝอย)</strong>
+        <p style="font-size: 0.9em; color: #ccc;">เป็นหลอดเลือดที่เล็กและบางที่สุด เชื่อมระหว่างแดงและดำ เป็นบริเวณที่มีการแลกเปลี่ยนก๊าซและสารอาหารระหว่างเลือดกับเนื้อเยื่อ เม็ดเลือดแดงไหลเรียงแถวเดี่ยวและเคลื่อนที่ช้าลงที่สุดเพื่อให้เกิดการแลกเปลี่ยนก๊าซและสารอาหารกับเซลล์  เมื่อแลกเปลี่ยนเสร็จแล้ว เลือดจะไหลมารวมกันที่หลอดเลือดดำ</p>
+    </div>
+    
+    <hr style="border: 0; border-top: 1px solid #444;">
+    <p style="font-size: 0.8em; color: #888;">*ปรับ Focus ให้ต่ำกว่า 3 เพื่อดูการระบุชื่อเส้นเลือดอัตโนมัติ</p>
+</div>
+
+<script>
+    // Script สำหรับเปิด-ปิด Sidebar
+    let sidebarOpen = false;
+    function toggleSidebar() {
+        const tab = document.getElementById('info-tab');
+        const handle = document.getElementById('tab-handle');
+        if(!sidebarOpen) {
+            tab.style.right = "0px";
+            handle.innerText = "ปิดหน้าต่าง (CLOSE)";
+        } else {
+            tab.style.right = "-300px";
+            handle.innerText = "คลังความรู้ (INFO)";
+        }
+        sidebarOpen = !sidebarOpen;
+    }
+
+    // อัปเดตข้อความขั้นตอนเป็นภาษาไทยตามสถานะ
+    setInterval(() => {
+        const msgBox = document.getElementById('msg');
+        if(msgBox.innerText.includes("Step 1")) msgBox.innerText = "ขั้นตอนที่ 1: คลิกหยิบสำลีแห้งจากจานสีขาว";
+        if(hasCotton && !isWet) msgBox.innerText = "ขั้นตอนที่ 2: นำสำลีไปชุบน้ำในบีกเกอร์สีฟ้า";
+        if(isWet) msgBox.innerText = "ขั้นตอนที่ 3: นำสำลีเปียกไปวางบนตัวปลาเพื่อให้น้องปลานิ่ง";
+        if(fish.isSedated && state === 'PREP') msgBox.innerText = "ขั้นตอนที่ 4: น้องปลาสลบแล้ว กด 'Z' เพื่อส่องกล้อง";
+        if(state === 'ZOOMED') msgBox.innerText = "ขั้นตอนที่ 5: ปรับโฟกัส และสังเกตการไหลของเลือดในเส้นเลือดแต่ละชนิด";
+    }, 100);
 </script>
 </body>
 </html>
